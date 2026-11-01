@@ -1,138 +1,131 @@
 # Emotion Evidence Retrieval
 
-This project explores how to find useful evidence in large Reddit discussions.
+This repository contains a small Reddit search and analysis system. It combines sentiment labels, reply links, community information, and source comments.
 
-It combines emotion classification with search and graph context. An analyst can find comments about a topic, compare communities, and inspect the replies around each result. The system also keeps the source comments, so an answer can be checked.
+The main question is simple: **can an analyst find relevant comments and understand the discussion around them?**
 
-This pattern is useful for complaint analysis, customer research, search, and knowledge discovery. It can also support a RAG system that needs to show where its answers came from.
+The code is a research prototype. It is not a production service, and it is not a claim about public opinion.
 
-## Benchmark result
+## What is included
 
-The benchmark notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It groups clear majority labels into two classes: positive and negative.
+- A supervised polarity benchmark built from human-rated GoEmotions comments.
+- A hybrid retriever that combines BM25 with SPLADE sparse vectors.
+- A local Qdrant index for sparse retrieval.
+- A LangChain retriever and answer chain.
+- A reply graph with Louvain community detection.
+- A notebook that creates the benchmark charts and metrics.
+- A small command-line demo that runs without external data.
 
-The test set contains 5,491 comments and uses a stratified 80/20 split. The result is:
+## Results
 
-- Accuracy: **84.94%**
-- Macro-F1: **83.12%**
-- Weighted-F1: **84.84%**
+The benchmark uses 58,009 unique Reddit comments from GoEmotions. We keep comments with a clear majority label and map them to two groups: positive and negative.
 
-These numbers are for the binary task. They are not scores for all 28 GoEmotions classes. The project keeps that distinction clear because the evaluation should be easy to understand and reproduce.
+The split is stratified and uses 80% of the data for training and 20% for testing. The test set contains 5,491 comments.
 
-To reproduce the result, run [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). The charts and metrics are in `outputs/notebook_showcase/`. The resume version is in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
+| Metric | Score |
+| --- | ---: |
+| Accuracy | 84.94% |
+| Macro-F1 | 83.12% |
+| Weighted-F1 | 84.84% |
 
-## The problem
+These scores are for the binary polarity task. They are not scores for the original 28-class GoEmotions task. The result, confusion matrix, label chart, and community chart are in [`outputs/notebook_showcase/`](outputs/notebook_showcase/).
 
-A sentiment model can label a single comment, but that label does not explain the wider discussion. A text retriever can find a matching comment, but it may miss the reply that gives the comment its meaning.
+To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](notebooks/reddit_graph_rag_showcase.ipynb) after downloading the GoEmotions files described below.
 
-This project joins those two views. It retrieves the comment and, when available, its parent, reply link, subreddit, author ID, and time. It then uses that context to give the analyst a more useful answer.
+## Why use graph context?
 
-Typical questions include:
+A text match is not always enough. A reply may agree with a comment, correct it, or disagree with it. The subreddit and the time of the comment can also change how an analyst reads it.
 
-- What are people feeling about a topic?
-- Which communities agree or disagree?
-- How did the discussion change over time?
-- Which comments should a person review?
-- What source comments support the answer?
+The pipeline keeps this information when it is available. It can attach a comment to its parent, subreddit, timestamp, and masked author ID. It can then use those links when it builds a reply graph and finds communities.
 
-## Pipeline
+## Quickstart
 
-The pipeline works in a few steps:
-
-1. Load Reddit comments and their metadata.
-2. Predict positive or negative emotion.
-3. Retrieve text with BM25 and SPLADE.
-4. Store sparse vectors in Qdrant.
-5. Build a reply graph and find communities with Louvain.
-6. Pass the retrieved evidence to a LangChain RAG chain.
-
-BM25 handles direct word matches. SPLADE adds learned sparse matches. Qdrant stores the vectors. LangChain connects retrieval to the answer step. If SPLADE cannot load, the program stops instead of silently replacing it with BM25.
-
-## Data
-
-For the graph data, I use the [Reddit Politosphere release](https://zenodo.org/records/5851729). Its [scripts and notes](https://github.com/valentinhofmann/politosphere) explain the file layout.
-
-The useful part is the conversation structure. Comments can be linked to their parent, subreddit, time, and masked author ID. That lets the system look at the discussion around a comment, not just the comment itself.
-
-The full release is large, so start with one monthly file. Put `comments_YYYY-MM.bz2` in `data\politosphere`, then run:
+Create an environment and install the package from the repository root:
 
 ```powershell
-$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv_sys\Scripts\python.exe -m reddit_rag.rag_cli `
-  --politosphere-comments .\data\politosphere\comments_2008-01.bz2 `
-  --query "What political criticism appears in the discussion?" `
-  --limit 100 `
-  --top-k 5
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
 ```
 
-This graph corpus does not contain gold sentiment labels. The loader keeps sentiment as `unlabeled`, so the pipeline does not create labels that are not in the data.
+The first SPLADE run downloads the model `naver/splade-cocondenser-ensembledistil` from Hugging Face. A model download is required. The code does not silently fall back to BM25 if SPLADE cannot load.
 
-## Labeled data
-
-For a labeled comparison, I use the [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics). It contains 5,024 Reddit submissions labeled as anti-Brexit, neither, or pro-Brexit.
-
-The classes are uneven, so accuracy alone is not enough. The experiment also reports macro-F1 and recall for each class.
+Run the built-in smoke test:
 
 ```powershell
-$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv_sys\Scripts\python.exe -m reddit_rag.experiment_cli `
-  --csv .\data\brexit\rbrexit_stance_annotations.csv.xz `
-  --output outputs\brexit_experiment `
-  --epochs 8 `
-  --skip-retrieval
+python -m reddit_rag.cli --demo --limit 5 --query "What do Reddit users say about games?"
 ```
 
-## RAG query
+This test uses five local fixture rows. It checks the pipeline without needing a dataset, Kaggle credentials, or an LLM key.
 
-The RAG code uses LangChain `Document` objects and a custom retriever. It combines BM25 and SPLADE results before passing them to the answer chain.
+## Run the RAG pipeline
 
-Without an LLM key, the chain returns an extractive evidence report. With `OPENAI_API_KEY` and `langchain-openai`, it can produce a cited answer from the same retrieved context.
+Set the source directory on `PYTHONPATH`, then run the command below:
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv_sys\Scripts\python.exe -m reddit_rag.rag_cli `
+python -m reddit_rag.rag_cli `
   --csv .\data\Reddit_Data.csv `
   --query "What evidence is positive or negative about Narendra Modi?" `
   --limit 100 `
   --top-k 5
 ```
 
-## Setup
+Without an LLM key, the command returns an extractive evidence report. With `OPENAI_API_KEY` and the optional `langchain-openai` package, it can generate a cited answer from the same retrieved documents.
 
-Create an environment and install the package:
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-Copy-Item .env.example .env
-```
-
-For a quick smoke test, run the built-in five-row fixture:
+For the graph-shaped Politosphere data, use a monthly comments file instead:
 
 ```powershell
-python -m reddit_rag.cli --demo --limit 5 --query "What do Reddit users say about games?"
+python -m reddit_rag.rag_cli `
+  --politosphere-comments .\data\politosphere\comments_2008-01.bz2 `
+  --query "What political criticism appears in the discussion?" `
+  --limit 100 `
+  --top-k 5
 ```
 
-The fixture does not need a Kaggle account. It checks that the main path works.
+## Data setup
 
-## Kaggle baseline
+The benchmark notebook expects the three official GoEmotions CSV files in `data\goemotions`:
 
-The original baseline uses the [Twitter and Reddit Sentimental Analysis dataset](https://www.kaggle.com/datasets/cosmos98/twitter-and-reddit-sentimental-analysis-dataset). Its Reddit file, `Reddit_Data.csv`, contains about 37K cleaned comments with negative, neutral, and positive labels.
+- `goemotions_1.csv`
+- `goemotions_2.csv`
+- `goemotions_3.csv`
 
-After configuring Kaggle access, run:
+The files are available from the [Google Research GoEmotions repository](https://github.com/google-research/google-research/tree/master/goemotions). The notebook groups rater rows by comment and keeps only clear majority labels.
+
+For the graph demo, download a monthly Politosphere comments file from [Zenodo](https://zenodo.org/records/5851729) and place it in `data\politosphere`. The [Politosphere repository](https://github.com/valentinhofmann/politosphere) documents the release.
+
+For the stance comparison, place `rbrexit_stance_annotations.csv.xz` in `data\brexit`. The file comes from [Brexit Opinion Dynamics](https://github.com/behavioral-ds/brexit-opinion-dynamics).
+
+Data files are ignored by Git. They are not included in this repository.
+
+## Run the labeled comparison
 
 ```powershell
-python -m reddit_rag.cli --kaggle-dataset cosmos98/twitter-and-reddit-sentimental-analysis-dataset --reddit-only --limit 500
+$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
+python -m reddit_rag.experiment_cli `
+  --csv .\data\brexit\rbrexit_stance_annotations.csv.xz `
+  --output outputs\brexit_experiment `
+  --epochs 8 `
+  --skip-retrieval
 ```
 
-The loader checks the text and label columns. If the data is missing, it fails clearly rather than inventing a replacement.
+The experiment writes `metrics.json`, `training_loss.png`, `confusion_matrix.png`, and `label_distribution.png`. It reports accuracy, macro-F1, weighted-F1, precision, recall, and per-class scores.
 
-## Scaling and evaluation
+## Repository layout
 
-Start with `--limit 500` and increase the limit after the small run works. Use `--qdrant-path .\qdrant_storage` for local storage. For a server, set `QDRANT_URL` and `QDRANT_API_KEY`.
+```text
+src/reddit_rag/             Python package and command-line entry points
+notebooks/                  Benchmark notebook
+outputs/notebook_showcase/  Saved benchmark figures and metrics
+PROBLEM_STATEMENT.md        Research question and evaluation plan
+RESUME_PROJECT_DESCRIPTION.md  Resume wording and project summary
+```
 
-The simple graph code is slow on very large data. For a full run, use shards and top-k graph edges before running Louvain.
+## Current limits
 
-The experiment writes metrics, loss charts, confusion matrices, and label charts. It reports accuracy, F1, precision, recall, Recall@k, MRR@k, and nDCG@k.
+The reported benchmark is a binary polarity task, not a full emotion classifier. The RAG demo is local and uses a small in-memory index. The simple graph construction is not designed for the full Politosphere release. A larger run would need sharded ingestion, a persistent Qdrant deployment, and a more scalable graph-building step.
 
-The full problem description is in [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md).
+Retrieval quality has not yet been judged by human annotators. The current retrieval scores use an explicit label-based proxy, so they should not be treated as human relevance scores. These limits are part of the project rather than hidden assumptions.
+
+The longer research plan is in [`PROBLEM_STATEMENT.md`](PROBLEM_STATEMENT.md). The resume version is in [`RESUME_PROJECT_DESCRIPTION.md`](RESUME_PROJECT_DESCRIPTION.md).
