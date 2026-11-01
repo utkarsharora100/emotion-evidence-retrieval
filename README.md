@@ -1,8 +1,8 @@
 # Emotion Evidence Retrieval
 
-This repository contains a Reddit search and analysis system for questions where the surrounding discussion matters.
+This repository contains a Reddit search and analysis system for political discussions. It focuses on conversations where people support, oppose, or question a public figure, policy, or event.
 
-For example, an analyst might ask: **“What changed in the conversation about a topic, and which communities pushed back?”** The system finds related comments, assigns emotional polarity, groups comments by community, and follows reply links when they are available.
+For example, an analyst might ask: **“How did Reddit communities react to a political topic, and which communities pushed back?”** The system finds related comments, assigns emotional polarity, groups comments by subreddit, and follows reply links when they are available.
 
 The result is more than a label. It includes the comments behind the result, their subreddit, and nearby conversation context. An analyst can then check whether the summary matches the sources.
 
@@ -34,7 +34,7 @@ To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](n
 
 ## A concrete example
 
-Suppose a team sees a sudden rise in negative comments about a product or topic. A sentiment model can count those comments, but it cannot show whether one community caused the change, whether other communities disagreed, or what the replies said.
+Suppose an analyst is studying a sudden rise in negative comments about a politician or policy. A sentiment model can count those comments, but it cannot show whether the reaction came from one subreddit, whether other communities disagreed, or what the replies said.
 
 This pipeline retrieves the comments, scores their polarity, and adds the available parent, subreddit, timestamp, and masked author information. It then builds a reply graph and groups related communities, so the analyst can compare the negative comments with the wider discussion.
 
