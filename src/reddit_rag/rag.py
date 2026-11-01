@@ -18,7 +18,7 @@ from .pipeline import SpladeEncoder, bm25_scores, sparse_similarity
 
 
 class HybridRedditRetriever(BaseRetriever):
-    """LangChain retriever using BM25 + SPLADE reciprocal-rank fusion."""
+    """Hybrid retrieval with graph-aware community and reply-context reranking."""
 
     _documents: list[Document] = PrivateAttr()
     _texts: list[str] = PrivateAttr()
@@ -27,14 +27,18 @@ class HybridRedditRetriever(BaseRetriever):
     _top_k: int = PrivateAttr()
     _qdrant: QdrantClient = PrivateAttr()
     _collection: str = PrivateAttr()
+    _community_weight: float = PrivateAttr()
+    _reply_weight: float = PrivateAttr()
 
-    def __init__(self, documents: list[Document], model_name: str, top_k: int = 5):
+    def __init__(self, documents: list[Document], model_name: str, top_k: int = 5, community_weight: float = 0.02, reply_weight: float = 0.01):
         super().__init__()
         self._documents = documents
         self._texts = [d.page_content for d in documents]
         self._encoder = SpladeEncoder(model_name)
         self._splade_vectors = self._encoder.encode(self._texts, batch_size=16)
         self._top_k = top_k
+        self._community_weight = community_weight
+        self._reply_weight = reply_weight
         self._qdrant = QdrantClient(":memory:")
         self._collection = "reddit_rag_" + uuid.uuid4().hex[:8]
         self._qdrant.create_collection(self._collection, vectors_config={}, sparse_vectors_config={"splade": models.SparseVectorParams(modifier=models.Modifier.IDF)})
@@ -47,11 +51,26 @@ class HybridRedditRetriever(BaseRetriever):
         semantic_rank = {int(hit.payload["doc_id"]): rank for rank, hit in enumerate(qdrant_hits)}
         lexical_rank = {i: rank for rank, i in enumerate(sorted(range(len(self._texts)), key=lambda i: lexical[i], reverse=True))}
         semantic_rank.update({i: len(self._texts) for i in range(len(self._texts)) if i not in semantic_rank})
-        fused = sorted(range(len(self._texts)), key=lambda i: 1 / (60 + lexical_rank[i]) + 1 / (60 + semantic_rank[i]), reverse=True)
+        base_score = {i: 1 / (60 + lexical_rank[i]) + 1 / (60 + semantic_rank[i]) for i in range(len(self._texts))}
+        remaining = set(base_score)
+        selected: list[int] = []
+        selected_communities: set[str] = set()
+        while remaining and len(selected) < self._top_k:
+            def rerank_score(i: int) -> float:
+                metadata = self._documents[i].metadata
+                community = str(metadata.get("subreddit", metadata.get("community_id", "unknown")))
+                novelty = self._community_weight if community not in selected_communities else 0.0
+                parent = str(metadata.get("parent_id", ""))
+                reply_context = self._reply_weight if parent and any(str(self._documents[j].metadata.get("doc_id", "")) == parent for j in selected) else 0.0
+                return base_score[i] + novelty + reply_context
+            best = max(remaining, key=rerank_score)
+            selected.append(best)
+            selected_communities.add(str(self._documents[best].metadata.get("subreddit", self._documents[best].metadata.get("community_id", "unknown"))))
+            remaining.remove(best)
         results = []
-        for i in fused[: self._top_k]:
+        for i in selected:
             doc = self._documents[i].copy(deep=True)
-            doc.metadata.update({"bm25_rank": lexical_rank[i] + 1, "splade_rank": semantic_rank[i] + 1, "hybrid_score": round(1 / (60 + lexical_rank[i]) + 1 / (60 + semantic_rank[i]), 6)})
+            doc.metadata.update({"bm25_rank": lexical_rank[i] + 1, "splade_rank": semantic_rank[i] + 1, "hybrid_score": round(base_score[i], 6), "rerank_community_novelty": self._community_weight, "rerank_reply_context": self._reply_weight})
             results.append(doc)
         return results
 

@@ -11,7 +11,8 @@ The result is more than a label. It includes the comments behind the result, the
 - **Emotion benchmark:** checks whether the model can separate all 28 GoEmotions labels in human-rated Reddit comments.
 - **BM25 + SPLADE:** combines exact phrase matches with learned sparse matches, which helps when people use different words for the same political idea.
 - **Qdrant:** stores the sparse vectors so the retriever can search the comment collection.
-- **LangChain:** connects retrieved comments to an answer step without hiding the source documents.
+- **Graph-aware reranking:** adds community diversity and nearby reply context after the first search, so the results do not all come from one thread.
+- **LangChain:** connects the reranked comments to an answer step without hiding the source documents.
 - **Reply graph:** keeps links between comments, so the system can compare a comment with its replies and find communities with Louvain.
 - **Notebook:** records the split, metrics, and charts in one place so the result can be checked.
 - **Command-line demo:** provides a five-row run for testing the pipeline before downloading a large dataset.
@@ -20,7 +21,7 @@ The result is more than a label. It includes the comments behind the result, the
 
 The benchmark uses 48,501 unique Reddit comments from GoEmotions. We keep comments with one clear majority label and retain the full 28-class emotion label.
 
-The split is stratified and uses 80% of the data for training and 20% for testing. The test set contains 5,491 comments.
+The split is stratified and uses 80% of the data for training and 20% for testing. The test set contains 9,701 comments.
 
 | Metric | Score |
 | --- | ---: |
@@ -36,7 +37,7 @@ To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](n
 
 Suppose an analyst is studying a sudden rise in negative comments about a politician or policy. A sentiment model can count those comments, but it cannot show whether the reaction came from one subreddit, whether other communities disagreed, or what the replies said.
 
-This pipeline retrieves the comments, scores their polarity, and adds the available parent, subreddit, timestamp, and masked author information. It then builds a reply graph and groups related communities, so the analyst can compare the negative comments with the wider discussion.
+This pipeline retrieves the comments, scores their emotion, and adds the available parent, subreddit, timestamp, and masked author information. It then builds a reply graph and groups related communities, so the analyst can compare the negative comments with the wider discussion.
 
 ## Quickstart
 
@@ -127,5 +128,7 @@ RESUME_PROJECT_DESCRIPTION.md  Resume wording and project summary
 The benchmark now covers all 28 GoEmotions classes. The notebook builds the full reply and subreddit graph for the labeled comments. The RAG demo is local and uses an in-memory index. Scaling the much larger Politosphere release would need sharded ingestion, a persistent Qdrant deployment, and a distributed graph-building step.
 
 Retrieval quality has not yet been judged by human annotators. The current retrieval scores use an explicit label-based proxy, so they should not be treated as human relevance scores. These limits are part of the project rather than hidden assumptions.
+
+The main contribution is the retrieval and evidence layer around the classifier. It combines BM25, SPLADE, Qdrant, reply links, community diversity, and source-aware LangChain answers in one tested path.
 
 The longer research plan is in [`PROBLEM_STATEMENT.md`](PROBLEM_STATEMENT.md). The resume version is in [`RESUME_PROJECT_DESCRIPTION.md`](RESUME_PROJECT_DESCRIPTION.md).
