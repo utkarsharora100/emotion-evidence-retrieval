@@ -8,7 +8,7 @@ This is useful for complaint review, customer research, search, and knowledge wo
 
 ## Best result
 
-The notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It turns clear majority labels into two classes: positive and negative.
+The benchmark notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It turns clear majority labels into two classes: positive and negative.
 
 The test set has 5,491 comments. It was made with a stratified 80/20 split.
 
@@ -20,7 +20,7 @@ These are binary results. They are not results for all 28 GoEmotions classes. Th
 
 The target was not changed to reach a better number. Labels were not leaked into the test set. The project reports the best honest result.
 
-Run the notebook at [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). See the charts and metrics in `outputs/notebook_showcase/`. See the resume text in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
+To reproduce the result, run [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). The charts and metrics are in `outputs/notebook_showcase/`. The resume text is in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
 
 ## What problem does it solve?
 
