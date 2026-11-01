@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: reddit-sentiment-rag
+Version: 0.1.0
+Summary: A lightweight Reddit sentiment GraphRAG pipeline with SPLADE and Qdrant
+Requires-Python: >=3.10
+Requires-Dist: pandas<3,>=2.0
+Requires-Dist: numpy<3,>=1.26
+Requires-Dist: networkx<4,>=3.2
+Requires-Dist: qdrant-client<2,>=1.12
+Requires-Dist: sentence-transformers<6,>=3.0
+Requires-Dist: transformers<5,>=4.45
+Requires-Dist: torch<3,>=2.2
+Requires-Dist: langchain-core<2,>=0.3
+Requires-Dist: python-dotenv<2,>=1.0
+Requires-Dist: typer<1,>=0.12
+Requires-Dist: kagglehub<1,>=0.3

@@ -1,0 +1,2 @@
+[console_scripts]
+reddit-rag = reddit_rag.cli:app

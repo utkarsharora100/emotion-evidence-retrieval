@@ -1,0 +1,9 @@
+.venv/
+.venv_sys/
+__pycache__/
+*.py[cod]
+.env
+qdrant_storage/
+data/
+work/
+.venv_*/
