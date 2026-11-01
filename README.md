@@ -8,7 +8,7 @@ The result is more than a label. It includes the comments behind the result, the
 
 ## What each part is for
 
-- **Polarity benchmark:** checks whether the model can separate positive and negative reactions in human-rated Reddit comments.
+- **Emotion benchmark:** checks whether the model can separate all 28 GoEmotions labels in human-rated Reddit comments.
 - **BM25 + SPLADE:** combines exact phrase matches with learned sparse matches, which helps when people use different words for the same political idea.
 - **Qdrant:** stores the sparse vectors so the retriever can search the comment collection.
 - **LangChain:** connects retrieved comments to an answer step without hiding the source documents.
@@ -18,19 +18,19 @@ The result is more than a label. It includes the comments behind the result, the
 
 ## Results
 
-The benchmark uses 58,009 unique Reddit comments from GoEmotions. We keep comments with a clear majority label and map them to two groups: positive and negative.
+The benchmark uses 48,501 unique Reddit comments from GoEmotions. We keep comments with one clear majority label and retain the full 28-class emotion label.
 
 The split is stratified and uses 80% of the data for training and 20% for testing. The test set contains 5,491 comments.
 
 | Metric | Score |
 | --- | ---: |
-| Accuracy | 84.94% |
-| Macro-F1 | 83.12% |
-| Weighted-F1 | 84.84% |
+| Accuracy | 55.10% |
+| Macro-F1 | 40.58% |
+| Weighted-F1 | 52.39% |
 
-These scores are for the binary polarity task. They are not scores for the original 28-class GoEmotions task. The result, confusion matrix, label chart, and community chart are in [`outputs/notebook_showcase/`](outputs/notebook_showcase/).
+These scores are for the full 28-class task, using majority-vote labels. The confusion matrix, label chart, and community chart are in [`outputs/notebook_showcase/`](outputs/notebook_showcase/). The earlier binary polarity result remains in the older `metrics.json` file.
 
-To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](notebooks/reddit_graph_rag_showcase.ipynb) after downloading the GoEmotions files described below.
+To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](notebooks/reddit_graph_rag_showcase.ipynb) after downloading the GoEmotions files described below. The notebook keeps all 28 emotion labels instead of collapsing them into positive and negative.
 
 ## A concrete example
 
@@ -124,7 +124,7 @@ RESUME_PROJECT_DESCRIPTION.md  Resume wording and project summary
 
 ## Current limits
 
-The reported benchmark is a binary polarity task, not a full emotion classifier. The RAG demo is local and uses a small in-memory index. The simple graph construction is not designed for the full Politosphere release. A larger run would need sharded ingestion, a persistent Qdrant deployment, and a more scalable graph-building step.
+The benchmark now covers all 28 GoEmotions classes. The notebook builds the full reply and subreddit graph for the labeled comments. The RAG demo is local and uses an in-memory index. Scaling the much larger Politosphere release would need sharded ingestion, a persistent Qdrant deployment, and a distributed graph-building step.
 
 Retrieval quality has not yet been judged by human annotators. The current retrieval scores use an explicit label-based proxy, so they should not be treated as human relevance scores. These limits are part of the project rather than hidden assumptions.
 
