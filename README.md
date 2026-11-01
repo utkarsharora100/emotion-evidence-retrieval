@@ -1,65 +1,59 @@
 # Emotion Evidence Retrieval
 
-This project helps analysts understand online discussions.
+This project explores how to find useful evidence in large Reddit discussions.
 
-It finds emotional comments, shows community differences, and gives source evidence. It does more than return one sentiment label. It also shows the reply and community context around each result.
+It combines emotion classification with search and graph context. An analyst can find comments about a topic, compare communities, and inspect the replies around each result. The system also keeps the source comments, so an answer can be checked.
 
-This is useful for complaint review, customer research, search, and knowledge work. It can also support RAG tools that need clear sources.
+This pattern is useful for complaint analysis, customer research, search, and knowledge discovery. It can also support a RAG system that needs to show where its answers came from.
 
-## Best result
+## Benchmark result
 
-The benchmark notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It turns clear majority labels into two classes: positive and negative.
+The benchmark notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It groups clear majority labels into two classes: positive and negative.
 
-The test set has 5,491 comments. It was made with a stratified 80/20 split.
+The test set contains 5,491 comments and uses a stratified 80/20 split. The result is:
 
 - Accuracy: **84.94%**
 - Macro-F1: **83.12%**
 - Weighted-F1: **84.84%**
 
-These are binary results. They are not results for all 28 GoEmotions classes. The project makes this clear so the result is easy to trust.
+These numbers are for the binary task. They are not scores for all 28 GoEmotions classes. The project keeps that distinction clear because the evaluation should be easy to understand and reproduce.
 
-The target was not changed to reach a better number. Labels were not leaked into the test set. The project reports the best honest result.
+To reproduce the result, run [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). The charts and metrics are in `outputs/notebook_showcase/`. The resume version is in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
 
-To reproduce the result, run [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). The charts and metrics are in `outputs/notebook_showcase/`. The resume text is in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
+## The problem
 
-## What problem does it solve?
+A sentiment model can label a single comment, but that label does not explain the wider discussion. A text retriever can find a matching comment, but it may miss the reply that gives the comment its meaning.
 
-An analyst may ask:
+This project joins those two views. It retrieves the comment and, when available, its parent, reply link, subreddit, author ID, and time. It then uses that context to give the analyst a more useful answer.
+
+Typical questions include:
 
 - What are people feeling about a topic?
 - Which communities agree or disagree?
-- What changed during a time period?
+- How did the discussion change over time?
 - Which comments should a person review?
-- What evidence supports the answer?
+- What source comments support the answer?
 
-A normal sentiment model looks at one comment. A normal RAG system may find text but miss the reply context. This project joins both parts.
+## Pipeline
 
-It retrieves the text, the parent comment, the reply link, the subreddit, and the time when available. It also keeps the source comments next to the answer.
+The pipeline works in a few steps:
 
-## How it works
+1. Load Reddit comments and their metadata.
+2. Predict positive or negative emotion.
+3. Retrieve text with BM25 and SPLADE.
+4. Store sparse vectors in Qdrant.
+5. Build a reply graph and find communities with Louvain.
+6. Pass the retrieved evidence to a LangChain RAG chain.
 
-The pipeline has six simple parts:
-
-1. It loads Reddit comments and their metadata.
-2. It predicts positive or negative emotion.
-3. It finds text with BM25.
-4. It finds learned sparse matches with SPLADE.
-5. It stores sparse vectors in Qdrant.
-6. It uses LangChain to build an evidence-based RAG answer.
-
-The project also builds a reply graph. It uses Louvain to find communities. BM25 gives a strong word match. SPLADE adds a learned sparse match. Qdrant stores the vectors. LangChain joins retrieval with the answer step.
-
-If SPLADE cannot load, the run stops. It does not quietly replace SPLADE with BM25.
+BM25 handles direct word matches. SPLADE adds learned sparse matches. Qdrant stores the vectors. LangChain connects retrieval to the answer step. If SPLADE cannot load, the program stops instead of silently replacing it with BM25.
 
 ## Data
 
-For the graph part, I use the [Reddit Politosphere release](https://zenodo.org/records/5851729). The project’s [scripts and notes](https://github.com/valentinhofmann/politosphere) explain how the files are organized.
+For the graph data, I use the [Reddit Politosphere release](https://zenodo.org/records/5851729). Its [scripts and notes](https://github.com/valentinhofmann/politosphere) explain the file layout.
 
-What makes this data useful is the conversation structure. A comment can be linked to its parent, its subreddit, its time, and a masked author ID. That lets the system look at the discussion around a comment, not just the comment itself.
+The useful part is the conversation structure. Comments can be linked to their parent, subreddit, time, and masked author ID. That lets the system look at the discussion around a comment, not just the comment itself.
 
-The full release is large, so start with one monthly file.
-
-Put `comments_YYYY-MM.bz2` in `data\politosphere`, then run:
+The full release is large, so start with one monthly file. Put `comments_YYYY-MM.bz2` in `data\politosphere`, then run:
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -70,13 +64,13 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
   --top-k 5
 ```
 
-This path has no gold sentiment labels. It keeps sentiment as `unlabeled`. This prevents made-up labels.
+This graph corpus does not contain gold sentiment labels. The loader keeps sentiment as `unlabeled`, so the pipeline does not create labels that are not in the data.
 
 ## Labeled data
 
-For a labeled comparison, I use the [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics). It has 5,024 Reddit submissions that people labeled as anti-Brexit, neither, or pro-Brexit.
+For a labeled comparison, I use the [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics). It contains 5,024 Reddit submissions labeled as anti-Brexit, neither, or pro-Brexit.
 
-The classes are uneven, so accuracy alone would be misleading. I report macro-F1 and recall for each class as well.
+The classes are uneven, so accuracy alone is not enough. The experiment also reports macro-F1 and recall for each class.
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -89,9 +83,9 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
 
 ## RAG query
 
-The RAG code uses LangChain `Document` objects. It uses a custom retriever. It joins BM25 and SPLADE results.
+The RAG code uses LangChain `Document` objects and a custom retriever. It combines BM25 and SPLADE results before passing them to the answer chain.
 
-Without an LLM key, it returns a simple evidence report. With `OPENAI_API_KEY` and `langchain-openai`, it can write a cited answer.
+Without an LLM key, the chain returns an extractive evidence report. With `OPENAI_API_KEY` and `langchain-openai`, it can produce a cited answer from the same retrieved context.
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -113,31 +107,31 @@ python -m pip install -e .
 Copy-Item .env.example .env
 ```
 
-For a small smoke test, run the built-in fixture:
+For a quick smoke test, run the built-in five-row fixture:
 
 ```powershell
 python -m reddit_rag.cli --demo --limit 5 --query "What do Reddit users say about games?"
 ```
 
-The fixture needs no Kaggle account. It checks the full path with five rows.
+The fixture does not need a Kaggle account. It checks that the main path works.
 
 ## Kaggle baseline
 
-The original baseline uses the [Twitter and Reddit Sentimental Analysis dataset](https://www.kaggle.com/datasets/cosmos98/twitter-and-reddit-sentimental-analysis-dataset). Its Reddit file is `Reddit_Data.csv`.
+The original baseline uses the [Twitter and Reddit Sentimental Analysis dataset](https://www.kaggle.com/datasets/cosmos98/twitter-and-reddit-sentimental-analysis-dataset). Its Reddit file, `Reddit_Data.csv`, contains about 37K cleaned comments with negative, neutral, and positive labels.
 
-The file has about 37K cleaned comments. The labels are negative, neutral, and positive.
+After configuring Kaggle access, run:
 
 ```powershell
 python -m reddit_rag.cli --kaggle-dataset cosmos98/twitter-and-reddit-sentimental-analysis-dataset --reddit-only --limit 500
 ```
 
-The loader checks the text and label columns. If the data is missing, it fails clearly. It does not invent a replacement.
+The loader checks the text and label columns. If the data is missing, it fails clearly rather than inventing a replacement.
 
-## Scale up
+## Scaling and evaluation
 
-Start with `--limit 500`. Increase the limit after the small run works. Use `--qdrant-path .\qdrant_storage` for local storage.
+Start with `--limit 500` and increase the limit after the small run works. Use `--qdrant-path .\qdrant_storage` for local storage. For a server, set `QDRANT_URL` and `QDRANT_API_KEY`.
 
-For a server, set `QDRANT_URL` and `QDRANT_API_KEY`. The simple graph code is slow at large sizes. For the full data, use shards and top-k graph edges before Louvain.
+The simple graph code is slow on very large data. For a full run, use shards and top-k graph edges before running Louvain.
 
 The experiment writes metrics, loss charts, confusion matrices, and label charts. It reports accuracy, F1, precision, recall, Recall@k, MRR@k, and nDCG@k.
 
