@@ -53,9 +53,11 @@ If SPLADE cannot load, the run stops. It does not quietly replace SPLADE with BM
 
 ## Data
 
-The graph data comes from the [Reddit Politosphere release](https://zenodo.org/records/5851729). Its [scripts and notes](https://github.com/valentinhofmann/politosphere) explain the data.
+For the graph part, I use the [Reddit Politosphere release](https://zenodo.org/records/5851729). The project’s [scripts and notes](https://github.com/valentinhofmann/politosphere) explain how the files are organized.
 
-The data has comments, times, reply links, subreddit names, and masked author IDs. The full release is large. Start with one monthly file.
+What makes this data useful is the conversation structure. A comment can be linked to its parent, its subreddit, its time, and a masked author ID. That lets the system look at the discussion around a comment, not just the comment itself.
+
+The full release is large, so start with one monthly file.
 
 Put `comments_YYYY-MM.bz2` in `data\politosphere`, then run:
 
@@ -70,11 +72,11 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
 
 This path has no gold sentiment labels. It keeps sentiment as `unlabeled`. This prevents made-up labels.
 
-## Labeled benchmark
+## Labeled data
 
-The [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics) has 5,024 human labels. The labels show anti-Brexit, neither, and pro-Brexit views.
+For a labeled comparison, I use the [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics). It has 5,024 Reddit submissions that people labeled as anti-Brexit, neither, or pro-Brexit.
 
-The data also has a larger interaction set. The classes are uneven. The project therefore reports macro-F1 and per-class recall with accuracy.
+The classes are uneven, so accuracy alone would be misleading. I report macro-F1 and recall for each class as well.
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
