@@ -5,7 +5,7 @@
 Built an end-to-end NLP and GenAI analytics system for discovering emotional themes and disagreement patterns in Reddit conversations, designed as a proxy for customer-interaction and complaint analytics.
 
 - Processed 58K human-annotated Reddit comments with subreddit, author pseudonym, timestamp, parent-comment, and link metadata; retained all 28 GoEmotions labels and represented reply structure as a graph for context-aware retrieval.
-- Implemented a LangChain RAG pipeline with hybrid BM25 + SPLADE sparse retrieval, Qdrant indexing, community detection, and evidence-cited extractive answers; preserved source, time, and conversation context for analyst review.
+- Implemented a LangChain RAG pipeline with hybrid BM25 + SPLADE sparse retrieval, Qdrant indexing, and a custom graph-aware reranker that rewards community coverage and nearby reply context before generating evidence-cited answers.
 - Built a leakage-safe stratified 28-class benchmark with 38,800 training comments and 9,701 held-out comments, confusion matrices, class distributions, and macro-F1 reporting.
 - Full-label benchmark: **55.10% accuracy, 40.58% macro-F1, and 52.39% weighted-F1** on 9,701 held-out comments; reported per-class scores because several emotions are rare and easy to confuse.
 - Added reproducible local execution, dataset loaders, model evaluation, graph statistics, and notebook-based visual analytics.
