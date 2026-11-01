@@ -1,41 +1,63 @@
-# Graph-Grounded Emotion Evidence Retrieval
+# Emotion Evidence Retrieval
 
-This project addresses a practical analytics problem: analysts need to find emotionally important discussion themes, compare communities, and review evidence. They need those results because a single sentiment score does not explain why people disagree or how a discussion changes over time. The system therefore combines emotion classification, graph context, hybrid retrieval, and evidence-grounded RAG.
+This project helps analysts understand online discussions.
 
-The project is designed as a customer-interaction analytics prototype. The same pattern can support complaint analytics, intelligent search, knowledge discovery, and workflow automation. The system is not presented as a production opinion poll. The system is presented as transparent decision support for an analyst.
+It finds emotional comments, shows community differences, and gives source evidence. It does more than return one sentiment label. It also shows the reply and community context around each result.
 
-## Best verified benchmark result
+This is useful for complaint review, customer research, search, and knowledge work. It can also support RAG tools that need clear sources.
 
-The showcase notebook uses 58,009 unique human-rated GoEmotions Reddit comments. It creates a documented binary polarity task from comments with an unambiguous majority label. A leakage-safe, stratified 80/20 split produces the following results on 5,491 held-out comments:
+## Best result
+
+The notebook uses 58,009 unique, human-rated Reddit comments from GoEmotions. It turns clear majority labels into two classes: positive and negative.
+
+The test set has 5,491 comments. It was made with a stratified 80/20 split.
 
 - Accuracy: **84.94%**
 - Macro-F1: **83.12%**
 - Weighted-F1: **84.84%**
 
-These are binary polarity results, and they are not 28-class GoEmotions results. The README states that distinction because the benchmark must remain clear and reproducible. The earlier 95% accuracy and 0.90 macro-F1 target was not reached without changing the task or leaking labels. The project reports the best defensible result instead.
+These are binary results. They are not results for all 28 GoEmotions classes. The project makes this clear so the result is easy to trust.
 
-The runnable notebook is [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). The generated figures and metrics are in `outputs/notebook_showcase/`. The resume-ready wording is in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
+The target was not changed to reach a better number. Labels were not leaked into the test set. The project reports the best honest result.
 
-## The problem and the system
+Run the notebook at [notebooks/reddit_graph_rag_showcase.ipynb](notebooks/reddit_graph_rag_showcase.ipynb). See the charts and metrics in `outputs/notebook_showcase/`. See the resume text in [RESUME_PROJECT_DESCRIPTION.md](RESUME_PROJECT_DESCRIPTION.md).
 
-The problem is graph-grounded emotion evidence retrieval for Reddit communities. Given a topic, an analyst should retrieve evidence from several communities and time windows. The analyst should also see disagreement, reply context, community context, and uncertainty. The analyst should not receive a fluent answer that cannot be traced back to source comments.
+## What problem does it solve?
 
-The system follows that requirement in six connected stages:
+An analyst may ask:
 
-1. It loads and normalizes Reddit comments and their available metadata.
-2. It predicts emotional polarity for the supervised benchmark.
-3. It retrieves candidates with BM25 and SPLADE sparse representations.
-4. It stores sparse vectors in Qdrant and fuses the retrieval signals.
-5. It builds reply and community relationships, then detects communities with Louvain.
-6. It passes LangChain `Document` objects into an evidence-first RAG answer chain.
+- What are people feeling about a topic?
+- Which communities agree or disagree?
+- What changed during a time period?
+- Which comments should a person review?
+- What evidence supports the answer?
 
-BM25 provides the lexical signal, while SPLADE provides the learned sparse signal. Qdrant provides the vector store, while LangChain provides the retrieval and answer boundary. The graph provides context, while the evidence report provides traceability. If SPLADE cannot load, the run stops with an actionable error instead of silently substituting another retriever.
+A normal sentiment model looks at one comment. A normal RAG system may find text but miss the reply context. This project joins both parts.
 
-## Recommended dataset: Reddit Politosphere
+It retrieves the text, the parent comment, the reply link, the subreddit, and the time when available. It also keeps the source comments next to the answer.
 
-The recommended graph corpus is the [official Zenodo release](https://zenodo.org/records/5851729), together with its [documentation and scripts repository](https://github.com/valentinhofmann/politosphere). It contains political Reddit comments, timestamps, pseudonymized authors, reply identifiers, link identifiers, language metadata, and subreddit metadata. It also contains yearly subreddit-overlap networks.
+## How it works
 
-The complete release is large, so the project starts with one monthly file. After downloading `comments_YYYY-MM.bz2` into `data\politosphere`, run the LangChain RAG slice:
+The pipeline has six simple parts:
+
+1. It loads Reddit comments and their metadata.
+2. It predicts positive or negative emotion.
+3. It finds text with BM25.
+4. It finds learned sparse matches with SPLADE.
+5. It stores sparse vectors in Qdrant.
+6. It uses LangChain to build an evidence-based RAG answer.
+
+The project also builds a reply graph. It uses Louvain to find communities. BM25 gives a strong word match. SPLADE adds a learned sparse match. Qdrant stores the vectors. LangChain joins retrieval with the answer step.
+
+If SPLADE cannot load, the run stops. It does not quietly replace SPLADE with BM25.
+
+## Data
+
+The graph data comes from the [Reddit Politosphere release](https://zenodo.org/records/5851729). Its [scripts and notes](https://github.com/valentinhofmann/politosphere) explain the data.
+
+The data has comments, times, reply links, subreddit names, and masked author IDs. The full release is large. Start with one monthly file.
+
+Put `comments_YYYY-MM.bz2` in `data\politosphere`, then run:
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -46,11 +68,13 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
   --top-k 5
 ```
 
-The loader streams the compressed file and filters to English comments by default. It preserves the author, subreddit, timestamp, parent, link, score, and language fields. The Politosphere corpus has no gold sentiment label in this path, so its sentiment remains `unlabeled`. That separation protects the evaluation from invented labels.
+This path has no gold sentiment labels. It keeps sentiment as `unlabeled`. This prevents made-up labels.
 
-## Recommended labeled benchmark: Brexit Opinion Dynamics
+## Labeled benchmark
 
-The [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics) provides 5,024 human-annotated Reddit submissions. Its labels represent anti-Brexit, neither, and pro-Brexit positions. The full metadata corpus contains 809,713 entries and interaction information. Because the classes are imbalanced, the experiment reports accuracy, macro-F1, per-class recall, and weighted-F1 together.
+The [Brexit Opinion Dynamics dataset](https://github.com/behavioral-ds/brexit-opinion-dynamics) has 5,024 human labels. The labels show anti-Brexit, neither, and pro-Brexit views.
+
+The data also has a larger interaction set. The classes are uneven. The project therefore reports macro-F1 and per-class recall with accuracy.
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -61,17 +85,11 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
   --skip-retrieval
 ```
 
-## Intended use cases
+## RAG query
 
-The system is intended for an analyst who needs evidence, not only a label. The analyst can ask which communities are positive, neutral, or negative. The analyst can ask for representative comments that support or criticize a topic. The analyst can ask which emotions and counter-emotions appear during a selected time window. The analyst can also retrieve negative comments for human review.
+The RAG code uses LangChain `Document` objects. It uses a custom retriever. It joins BM25 and SPLADE results.
 
-The system supports those questions, but it does not claim causal public opinion. The system supports review, but it does not replace review. The system reports evidence, but it does not hide uncertainty. Those limits are important when the output informs customer, policy, or operational decisions.
-
-The research framing is documented in [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md). The contribution is not another isolated sentiment classifier. The contribution is a reproducible retrieval system that preserves disagreement, community context, reply context, and time context.
-
-## LangChain RAG query
-
-The local RAG path uses LangChain `Document` objects and a custom `BaseRetriever`. It combines BM25 with SPLADE reciprocal-rank fusion, and it sends the retrieved evidence into a runnable answer chain. Without an LLM key, the chain returns a deterministic extractive evidence report. With `OPENAI_API_KEY` and `langchain-openai`, the chain can generate a cited answer from the same retrieved context.
+Without an LLM key, it returns a simple evidence report. With `OPENAI_API_KEY` and `langchain-openai`, it can write a cited answer.
 
 ```powershell
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
@@ -82,11 +100,9 @@ $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
   --top-k 5
 ```
 
-Install the optional provider with `python -m pip install -e ".[llm]"` when cited LLM generation is required.
+## Setup
 
-## Local setup
-
-Create an environment, install the package, and copy the example environment file:
+Create an environment and install the package:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -95,49 +111,32 @@ python -m pip install -e .
 Copy-Item .env.example .env
 ```
 
-If the machine-wide Python installation has broken launchers, use the isolated environment below. This environment can reuse installed machine-wide ML wheels while it still installs the project-specific packages.
-
-```powershell
-py -3.12 -m venv --system-site-packages .venv_sys
-.\.venv_sys\Scripts\python.exe -m pip install --no-deps qdrant-client langchain-core python-dotenv kagglehub grpcio portalocker pydantic pydantic-core annotated-types typing-inspection
-$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-```
-
-The first SPLADE run downloads its Hugging Face model. If model access is unavailable, the command stops with an actionable error. The system does not silently replace SPLADE with BM25.
-
-## Minimal end-to-end slice
-
-The minimal slice uses a five-row fixture, so it does not need a Kaggle account or an external dataset:
+For a small smoke test, run the built-in fixture:
 
 ```powershell
 python -m reddit_rag.cli --demo --limit 5 --query "What do Reddit users say about games?"
 ```
 
-The output includes the SPLADE model, the Qdrant collection, detected communities, retrieved evidence, and the label distribution. The minimal slice is for smoke testing. The notebook is for benchmark reporting.
+The fixture needs no Kaggle account. It checks the full path with five rows.
 
 ## Kaggle baseline
 
-The original baseline uses the [Twitter and Reddit Sentimental Analysis dataset](https://www.kaggle.com/datasets/cosmos98/twitter-and-reddit-sentimental-analysis-dataset). Its Reddit file is `Reddit_Data.csv`, with roughly 37K cleaned comments and negative, neutral, and positive labels. Download the data after configuring Kaggle access, then run either command below.
+The original baseline uses the [Twitter and Reddit Sentimental Analysis dataset](https://www.kaggle.com/datasets/cosmos98/twitter-and-reddit-sentimental-analysis-dataset). Its Reddit file is `Reddit_Data.csv`.
+
+The file has about 37K cleaned comments. The labels are negative, neutral, and positive.
 
 ```powershell
-python -m reddit_rag.cli --csv .\data\twitter-reddit-sentiment.csv --reddit-only --limit 500
 python -m reddit_rag.cli --kaggle-dataset cosmos98/twitter-and-reddit-sentimental-analysis-dataset --reddit-only --limit 500
 ```
 
-The loader searches common text and label columns and reports the detected schema. If the data is unavailable, the loader fails clearly. It does not invent a substitute dataset.
+The loader checks the text and label columns. If the data is missing, it fails clearly. It does not invent a replacement.
 
-## Scale-up and evaluation
+## Scale up
 
-Start with `--limit 500`, and then increase the limit after the pipeline is stable. Use `--qdrant-path .\qdrant_storage` for a persistent local Qdrant store, or use `QDRANT_URL` and `QDRANT_API_KEY` for a server. The minimal graph implementation is quadratic, so full-scale use requires sharded ingestion and top-k neighbor edges before Louvain.
+Start with `--limit 500`. Increase the limit after the small run works. Use `--qdrant-path .\qdrant_storage` for local storage.
 
-The experiment command records training and validation loss by epoch. It also writes classification metrics, retrieval metrics, confusion matrices, label distributions, and training-loss graphs. Classification metrics include accuracy, macro-F1, weighted-F1, precision, recall, and per-class scores. Retrieval metrics include Recall@k, MRR@k, and nDCG@k. Retrieval relevance is defined explicitly, because shared sentiment is not the same as human relevance.
+For a server, set `QDRANT_URL` and `QDRANT_API_KEY`. The simple graph code is slow at large sizes. For the full data, use shards and top-k graph edges before Louvain.
 
-```powershell
-$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-.\.venv_sys\Scripts\python.exe -m reddit_rag.experiment_cli `
-  --kaggle-dataset cosmos98/twitter-and-reddit-sentimental-analysis-dataset `
-  --output outputs/reddit_experiment `
-  --epochs 8 `
-  --retrieval-limit 300 `
-  --queries 30
-```
+The experiment writes metrics, loss charts, confusion matrices, and label charts. It reports accuracy, F1, precision, recall, Recall@k, MRR@k, and nDCG@k.
+
+The full problem description is in [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md).
