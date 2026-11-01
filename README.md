@@ -6,15 +6,15 @@ For example, an analyst might ask: **“How did Reddit communities react to a po
 
 The result is more than a label. It includes the comments behind the result, their subreddit, and nearby conversation context. An analyst can then check whether the summary matches the sources.
 
-## What is included
+## What each part is for
 
-- A supervised polarity benchmark built from human-rated GoEmotions comments.
-- A hybrid retriever that combines BM25 with SPLADE sparse vectors.
-- A local Qdrant index for sparse retrieval.
-- A LangChain retriever and answer chain.
-- A reply graph with Louvain community detection.
-- A notebook that creates the benchmark charts and metrics.
-- A small command-line demo that runs without external data.
+- **Polarity benchmark:** checks whether the model can separate positive and negative reactions in human-rated Reddit comments.
+- **BM25 + SPLADE:** combines exact phrase matches with learned sparse matches, which helps when people use different words for the same political idea.
+- **Qdrant:** stores the sparse vectors so the retriever can search the comment collection.
+- **LangChain:** connects retrieved comments to an answer step without hiding the source documents.
+- **Reply graph:** keeps links between comments, so the system can compare a comment with its replies and find communities with Louvain.
+- **Notebook:** records the split, metrics, and charts in one place so the result can be checked.
+- **Command-line demo:** provides a five-row run for testing the pipeline before downloading a large dataset.
 
 ## Results
 
