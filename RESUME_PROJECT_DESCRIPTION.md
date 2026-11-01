@@ -4,15 +4,15 @@
 
 Built an end-to-end NLP and GenAI analytics system for discovering emotional themes and disagreement patterns in Reddit conversations, designed as a proxy for customer-interaction and complaint analytics.
 
-- Processed 58K human-annotated Reddit comments with subreddit, author pseudonym, timestamp, parent-comment, and link metadata; represented reply structure as a graph for context-aware retrieval.
+- Processed 58K human-annotated Reddit comments with subreddit, author pseudonym, timestamp, parent-comment, and link metadata; retained all 28 GoEmotions labels and represented reply structure as a graph for context-aware retrieval.
 - Implemented a LangChain RAG pipeline with hybrid BM25 + SPLADE sparse retrieval, Qdrant indexing, community detection, and evidence-cited extractive answers; preserved source, time, and conversation context for analyst review.
-- Built a leakage-safe stratified benchmark with train/validation/test separation, minority-class balancing, confusion matrices, loss curves, and macro-F1 reporting.
-- Best verified derived polarity benchmark: **84.94% accuracy and 83.12% macro-F1** on 5,491 held-out comments; reported class-aware metrics because Reddit emotion labels are ambiguous and imbalanced.
+- Built a leakage-safe stratified 28-class benchmark with 38,800 training comments and 9,701 held-out comments, confusion matrices, class distributions, and macro-F1 reporting.
+- Full-label benchmark: **55.10% accuracy, 40.58% macro-F1, and 52.39% weighted-F1** on 9,701 held-out comments; reported per-class scores because several emotions are rare and easy to confuse.
 - Added reproducible local execution, dataset loaders, model evaluation, graph statistics, and notebook-based visual analytics.
 
 ### One-line version
 
-Built a graph-grounded LangChain RAG system for Reddit emotion and conversation intelligence using SPLADE, Qdrant, Louvain communities, and evidence-cited retrieval; achieved 84.94% accuracy / 83.12% macro-F1 on a leakage-safe held-out polarity benchmark.
+Built a graph-grounded LangChain RAG system for Reddit emotion and conversation intelligence using SPLADE, Qdrant, Louvain communities, and evidence-cited retrieval; evaluated all 28 GoEmotions labels with 55.10% accuracy and 40.58% macro-F1 on held-out comments.
 
 ### Kotak relevance
 
@@ -20,4 +20,4 @@ This project demonstrates the same technical pattern as complaint analytics and 
 
 ### Disclosure
 
-The 84.94% / 83.12% figures are for a documented binary polarity aggregation of GoEmotions labels, not the original 28-class emotion task. The project does not claim a 95% score that was not achieved on a valid held-out benchmark.
+The reported headline result is the full 28-class GoEmotions majority-label benchmark. A separate binary polarity analysis exists, but it is not used as the main project result.
