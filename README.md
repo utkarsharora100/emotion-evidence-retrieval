@@ -1,10 +1,10 @@
 # Emotion Evidence Retrieval
 
-This repository contains a small Reddit search and analysis system. It combines sentiment labels, reply links, community information, and source comments.
+This repository contains a Reddit search and analysis system for questions where the surrounding discussion matters.
 
-The main question is simple: **can an analyst find relevant comments and understand the discussion around them?**
+For example, an analyst might ask: **“What changed in the conversation about a topic, and which communities pushed back?”** The system finds related comments, assigns emotional polarity, groups comments by community, and follows reply links when they are available.
 
-The code is a research prototype. It is not a production service, and it is not a claim about public opinion.
+The result is more than a label. It includes the comments behind the result, their subreddit, and nearby conversation context. An analyst can then check whether the summary matches the sources.
 
 ## What is included
 
@@ -32,11 +32,11 @@ These scores are for the binary polarity task. They are not scores for the origi
 
 To reproduce the benchmark, open [`notebooks/reddit_graph_rag_showcase.ipynb`](notebooks/reddit_graph_rag_showcase.ipynb) after downloading the GoEmotions files described below.
 
-## Why use graph context?
+## A concrete example
 
-A text match is not always enough. A reply may agree with a comment, correct it, or disagree with it. The subreddit and the time of the comment can also change how an analyst reads it.
+Suppose a team sees a sudden rise in negative comments about a product or topic. A sentiment model can count those comments, but it cannot show whether one community caused the change, whether other communities disagreed, or what the replies said.
 
-The pipeline keeps this information when it is available. It can attach a comment to its parent, subreddit, timestamp, and masked author ID. It can then use those links when it builds a reply graph and finds communities.
+This pipeline retrieves the comments, scores their polarity, and adds the available parent, subreddit, timestamp, and masked author information. It then builds a reply graph and groups related communities, so the analyst can compare the negative comments with the wider discussion.
 
 ## Quickstart
 
